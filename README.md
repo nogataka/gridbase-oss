@@ -169,7 +169,7 @@ You can also delete `.env` afterwards (`rm .env`) if you no longer need it. `doc
 - TCP tunnels have no public listener. Only HTTP tunnels work end to end. The console shows TCP as not supported.
 - The admin console uses Next.js 14, which has known upstream vulnerabilities. If you expose it, put it behind a VPN, an IP allow-list or an authenticating proxy. See [Security notes](./docs/security.md).
 - The console UI is Japanese only. There is no i18n.
-- One request at a time per tunnel. Bodies are fully buffered in memory. Each request has a fixed 30 second timeout.
+- One request at a time per tunnel. Bodies are fully buffered in memory. After the request body is read, forwarding it through the tunnel has a fixed 30 second timeout.
 - No WebSocket, Server-Sent Events or streaming responses.
 - A new or changed subdomain or API key usually reaches the tunnel server within about 30 seconds. It takes longer if the database is slow or failing.
 - A client whose API key is unknown to the server at connect time exits. Restart it.
