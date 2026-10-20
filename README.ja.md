@@ -181,4 +181,4 @@ docker compose down -v
 
 [MIT](./LICENSE) / Copyright (c) 2026 nogataka
 
-MIT ライセンスが対象とするのは、このリポジトリのコードです。起動時に取得する他社のイメージには、それぞれのライセンスが適用されます。特に Directus 11.17.4 は Business Source License 1.1 で、オープンソースのライセンスではありません。本番で無料で使えるのは、直近12か月の総資金が500万米ドル以下の組織に限られます。それを超える組織が本番で使う場合は、Directus の商用ライセンスが必要です。本番で使う前に [Directus のライセンス](https://github.com/directus/directus/blob/v11.17.4/license) を確認してください。
+MIT ライセンスが対象とするのは、このリポジトリのコードです。起動時に取得する他社のイメージには、それぞれのライセンスが適用されます。特に Directus 11.17.4 は Business Source License 1.1 で、オープンソースのライセンスではありません。利用者と関連会社の直近12か月の総収益・予算・資金調達額のうち最大のものが500万米ドルを超える場合、本番で使うには Directus の商用ライセンスが必要です。本番で使う前に [Directus のライセンス](https://github.com/directus/directus/blob/v11.17.4/license) を確認してください。
