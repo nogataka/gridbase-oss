@@ -1,0 +1,184 @@
+# gridbase オールインワン構成
+#
+#   cp .env.example .env && docker compose up -d
+#
+# caddy (:80/:443) ─┬─ admin.<…>  -> web (:3000)
+#                   └─ *.<base>   -> tunnel (:9080)
+# gridbase client ──────────────────> tunnel (:9443)  ※Caddy を通さず直接公開
+# web / tunnel ─────────────────────> directus (:8055)  ※外部には公開しない
+# directus-init: 秘密の検査・スキーマ適用・最小権限ポリシー・サービストークン（冪等・1 回で終了）
+#
+# 公開構成（GRIDBASE_BIND_ADDRESS が 127.0.0.1 以外、https、または localhost / *.localhost / *.test / *.internal 以外の
+# 実ドメイン）で、.env.example の既定の秘密が残っている、または DB に保存済みの管理者のパスワードが既定のままだと
+# directus-init が失敗し、tunnel / web / caddy は起動しません（ポートも開きません）。
+
+name: gridbase
+
+x-restart: &restart
+  restart: unless-stopped
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    <<: *restart
+    ports:
+      - "${GRIDBASE_BIND_ADDRESS:-127.0.0.1}:${GRIDBASE_HOST_HTTP_PORT:-80}:80"
+      - "${GRIDBASE_BIND_ADDRESS:-127.0.0.1}:${GRIDBASE_HOST_HTTPS_PORT:-443}:443"
+    environment:
+      GRIDBASE_SITE_SCHEME: ${GRIDBASE_SITE_SCHEME:-http://}
+      GRIDBASE_ADMIN_DOMAIN: ${GRIDBASE_ADMIN_DOMAIN:-admin.gridbase.localhost}
+      GRIDBASE_BASE_DOMAIN: ${GRIDBASE_BASE_DOMAIN:-gridbase.localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_healthy
+      tunnel:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:2019/config/"]
+      interval: 10s
+      timeout: 4s
+      retries: 5
+      start_period: 5s
+
+  directus:
+    image: directus/directus:11.17.4
+    <<: *restart
+    environment:
+      KEY: ${DIRECTUS_KEY:?DIRECTUS_KEY を .env に設定してください}
+      SECRET: ${DIRECTUS_SECRET:?DIRECTUS_SECRET を .env に設定してください}
+      PUBLIC_URL: http://directus:8055
+      DB_CLIENT: sqlite3
+      DB_FILENAME: /directus/database/data.db
+      # ADMIN_* は「最初の起動で Directus 管理者を作る」ときだけ使われます。
+      # 起動後に .env を書き換えても、すでに保存された管理者のパスワード・トークンは変わりません（README 参照）
+      ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL:?DIRECTUS_ADMIN_EMAIL を .env に設定してください}
+      ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD:?DIRECTUS_ADMIN_PASSWORD を .env に設定してください}
+      ADMIN_TOKEN: ${DIRECTUS_ADMIN_TOKEN:?DIRECTUS_ADMIN_TOKEN を .env に設定してください}
+      TELEMETRY: "false"
+    volumes:
+      - directus-db:/directus/database
+      - directus-uploads:/directus/uploads
+    # ホストから Directus の管理 UI を開きたいときだけ有効にする（既定は非公開）
+    # ports:
+    #   - "127.0.0.1:8055:8055"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:8055/server/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+
+  directus-init:
+    # node:22-alpine + bcryptjs（保存済みの管理者パスワードが既定値でないかの検査用）。directus/init/Dockerfile
+    build: ./directus/init
+    image: gridbase-init:local
+    restart: "no"
+    environment:
+      DIRECTUS_URL: http://directus:8055
+      SCHEMA_FILE: /schema/gridbase.json
+      ENV_EXAMPLE_FILE: /defaults/env.example
+      DIRECTUS_ADMIN_TOKEN: ${DIRECTUS_ADMIN_TOKEN}
+      GRIDBASE_WEB_DIRECTUS_TOKEN: ${GRIDBASE_WEB_DIRECTUS_TOKEN:?GRIDBASE_WEB_DIRECTUS_TOKEN を .env に設定してください}
+      GRIDBASE_TUNNEL_DIRECTUS_TOKEN: ${GRIDBASE_TUNNEL_DIRECTUS_TOKEN:?GRIDBASE_TUNNEL_DIRECTUS_TOKEN を .env に設定してください}
+      # 以下は「既定の秘密のまま公開されていないか」の検査にだけ使う（init はこれらでログインしない）
+      DIRECTUS_KEY: ${DIRECTUS_KEY}
+      DIRECTUS_SECRET: ${DIRECTUS_SECRET}
+      DIRECTUS_ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      GRIDBASE_ADMIN_PASSWORD: ${GRIDBASE_ADMIN_PASSWORD:-}
+      GRIDBASE_TUNNEL_ADMIN_TOKEN: ${GRIDBASE_TUNNEL_ADMIN_TOKEN:-}
+      # 公開構成かどうかの判定
+      GRIDBASE_BIND_ADDRESS: ${GRIDBASE_BIND_ADDRESS:-127.0.0.1}
+      GRIDBASE_SITE_SCHEME: ${GRIDBASE_SITE_SCHEME:-http://}
+      GRIDBASE_ADMIN_URL: ${GRIDBASE_ADMIN_URL:-http://admin.gridbase.localhost}
+      GRIDBASE_BASE_DOMAIN: ${GRIDBASE_BASE_DOMAIN:-gridbase.localhost}
+      GRIDBASE_ADMIN_DOMAIN: ${GRIDBASE_ADMIN_DOMAIN:-admin.gridbase.localhost}
+    volumes:
+      - ./directus/schema:/schema:ro
+      # .env.example の値と一致していないかの検査用
+      - ./.env.example:/defaults/env.example:ro
+    depends_on:
+      directus:
+        condition: service_healthy
+
+  tunnel:
+    build: ./tunnel
+    image: gridbase-tunnel:local
+    <<: *restart
+    ports:
+      # トンネルクライアントの接続先。HTTP(:9080) は Caddy 経由でのみ到達できる
+      - "${GRIDBASE_BIND_ADDRESS:-127.0.0.1}:${GRIDBASE_HOST_TUNNEL_PORT:-9443}:9443"
+    environment:
+      GRIDBASE_BASE_DOMAIN: ${GRIDBASE_BASE_DOMAIN:-gridbase.localhost}
+      GRIDBASE_DIRECTUS_URL: http://directus:8055
+      GRIDBASE_DIRECTUS_TOKEN: ${GRIDBASE_TUNNEL_DIRECTUS_TOKEN}
+      # 空(無効) または 24 文字以上のランダム値。change-me / local-dev- / replace-with- 始まりだと管理 API は無効になる
+      GRIDBASE_ADMIN_BEARER_TOKEN: ${GRIDBASE_TUNNEL_ADMIN_TOKEN:-}
+      # 任意の調整値（空なら tunnel の既定値。tunnel/README.md の設定表を参照）
+      GRIDBASE_TUNNEL_MAX_FRAME_BYTES: ${GRIDBASE_TUNNEL_MAX_FRAME_BYTES:-}
+      GRIDBASE_TUNNEL_HANDSHAKE_TIMEOUT: ${GRIDBASE_TUNNEL_HANDSHAKE_TIMEOUT:-}
+      GRIDBASE_HTTP_MAX_REQUEST_BODY_BYTES: ${GRIDBASE_HTTP_MAX_REQUEST_BODY_BYTES:-}
+      GRIDBASE_HTTP_MAX_RESPONSE_BODY_BYTES: ${GRIDBASE_HTTP_MAX_RESPONSE_BODY_BYTES:-}
+      GRIDBASE_HTTP_TRUSTED_PROXIES: ${GRIDBASE_HTTP_TRUSTED_PROXIES:-}
+    volumes:
+      - ./tunnel/config/server.compose.json:/etc/gridbase/server.json:ro
+    # tunnel/Dockerfile の HEALTHCHECK と同じ内容。caddy の depends_on(service_healthy) が依存するので compose 側にも明示する
+    healthcheck:
+      test: ["CMD", "/usr/local/bin/gridbase-tunnel-server", "--healthcheck", "--config", "/etc/gridbase/server.json"]
+      interval: 10s
+      timeout: 4s
+      retries: 3
+      start_period: 5s
+    # ホスト上のアプリ(host.docker.internal)へ中継するクライアントを compose 内で動かす場合に使う（Linux 用）
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    depends_on:
+      directus-init:
+        condition: service_completed_successfully
+
+  web:
+    build: ./web
+    image: gridbase-web:local
+    <<: *restart
+    environment:
+      NEXTAUTH_URL: ${GRIDBASE_ADMIN_URL:-http://admin.gridbase.localhost}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET を .env に設定してください}
+      DIRECTUS_URL: http://directus:8055
+      DIRECTUS_TOKEN: ${GRIDBASE_WEB_DIRECTUS_TOKEN}
+      GRIDBASE_BASE_DOMAIN: ${GRIDBASE_BASE_DOMAIN:-gridbase.localhost}
+      GRIDBASE_TUNNEL_SERVER: ${GRIDBASE_TUNNEL_SERVER:-localhost:9443}
+      GRIDBASE_SIGNUP_ENABLED: ${GRIDBASE_SIGNUP_ENABLED:-false}
+      GRIDBASE_SESSION_RECHECK_SECONDS: ${GRIDBASE_SESSION_RECHECK_SECONDS:-300}
+      SEED_WAIT_SECONDS: ${SEED_WAIT_SECONDS:-120}
+      GRIDBASE_ADMIN_EMAIL: ${GRIDBASE_ADMIN_EMAIL:-}
+      GRIDBASE_ADMIN_PASSWORD: ${GRIDBASE_ADMIN_PASSWORD:-}
+      # seed-admin が「公開構成か」を判定するのに使う（directus-init と同じ条件。web/scripts/deployment-check.mjs）。
+      # NEXTAUTH_URL（= GRIDBASE_ADMIN_URL）と GRIDBASE_BASE_DOMAIN も判定に使われる
+      GRIDBASE_BIND_ADDRESS: ${GRIDBASE_BIND_ADDRESS:-127.0.0.1}
+      GRIDBASE_SITE_SCHEME: ${GRIDBASE_SITE_SCHEME:-http://}
+      GRIDBASE_ADMIN_DOMAIN: ${GRIDBASE_ADMIN_DOMAIN:-admin.gridbase.localhost}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+    # web/Dockerfile の HEALTHCHECK と同じ内容。caddy の depends_on(service_healthy) が依存するので compose 側にも明示する
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+    depends_on:
+      directus-init:
+        condition: service_completed_successfully
+
+volumes:
+  caddy-data:
+  caddy-config:
+  directus-db:
+  directus-uploads:

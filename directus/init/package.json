@@ -1,0 +1,17 @@
+{
+  "name": "gridbase-directus-init",
+  "version": "0.1.0",
+  "private": true,
+  "description": "gridbase directus-init: schema, least-privilege policies, service tokens and the default-secret checks (run by docker compose)",
+  "type": "module",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test *.test.mjs"
+  },
+  "dependencies": {
+    "bcryptjs": "3.0.3"
+  }
+}

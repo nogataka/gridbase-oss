@@ -1,0 +1,10 @@
+.git
+.gocache
+.gomodcache
+bin
+*.md
+config/*.json
+!config/*.example.json
+**/*.key
+**/*.pem
+**/*.crt

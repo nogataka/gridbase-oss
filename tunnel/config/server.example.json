@@ -1,0 +1,35 @@
+{
+  "base_domain": "gridbase.localhost",
+  "tunnel": {
+    "port": 9443
+  },
+  "http": {
+    "port": 9080,
+    "read_timeout": 15,
+    "write_timeout": 30,
+    "idle_timeout": 60
+  },
+  "admin": {
+    "bearer_token": "replace-with-a-long-random-token",
+    "host": "admin.gridbase.localhost",
+    "cors_origin": "",
+    "timezone": "UTC"
+  },
+  "directus": {
+    "url": "http://directus:8055"
+  },
+  "domains": [
+    {
+      "api_key": "replace-with-a-random-api-key",
+      "subdomain": "web",
+      "type": "http",
+      "local_url": "http://127.0.0.1:3000",
+      "policy": {
+        "allowed_protocols": ["http"],
+        "default_headers": {
+          "X-Forwarded-Proto": "https"
+        }
+      }
+    }
+  ]
+}

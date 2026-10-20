@@ -1,0 +1,12 @@
+/bin/
+/.gocache/
+/.gomodcache/
+# Real configuration, secrets and certificates never belong in git.
+/config/*.json
+!/config/*.example.json
+/config/*.env
+*.key
+*.pem
+*.crt
+*.csr
+!/config/server.compose.json

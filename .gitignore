@@ -1,0 +1,25 @@
+# 実際の設定・秘密
+.env
+.env.*
+!.env.example
+
+# 依存・ビルド生成物
+node_modules/
+.next/
+*.tsbuildinfo
+
+# ローカルのデータ（bind mount を使う場合）
+/data/
+/directus/database/
+/directus/uploads/
+/caddy-data/
+*.db
+*.sqlite
+
+# 鍵・証明書
+*.key
+*.pem
+*.crt
+*.csr
+
+.DS_Store

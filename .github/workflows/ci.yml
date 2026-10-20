@@ -1,0 +1,79 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  tunnel:
+    name: tunnel (go vet / test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: tunnel
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.24'
+          cache-dependency-path: tunnel/go.sum
+      - run: go vet ./...
+      - run: go test -count=1 ./...
+      - run: go test -count=1 -race ./...
+
+  web:
+    name: web (lint / tsc / test / build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx tsc --noEmit
+      - run: npm test
+      - run: npm run build
+
+  init:
+    name: directus-init (unit tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: npm ci
+        working-directory: directus/init
+      - run: node --test directus/init/*.test.mjs
+
+  compose-smoke:
+    name: compose smoke (tests/e2e)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Start the stack with the example environment
+        run: |
+          cp .env.example .env
+          docker compose up -d --build --wait
+          docker compose ps
+      - name: End-to-end smoke test
+        run: node tests/e2e/smoke.mjs
+      - name: Logs (on failure)
+        if: failure()
+        run: docker compose logs --no-color --tail=200
+      - name: Stop
+        if: always()
+        run: docker compose down -v

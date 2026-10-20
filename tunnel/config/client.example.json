@@ -1,0 +1,22 @@
+{
+  "server_addr": "tunnel.example.com:9443",
+  "api_key": "replace-with-api-key",
+  "mode": "http",
+  "tls": {
+    "enabled": true
+  },
+  "http": {
+    "timeout": "30s",
+    "override_url": "http://127.0.0.1:3000"
+  },
+  "reconnect": {
+    "initial": "2s",
+    "max": "30s",
+    "multiplier": 2.0,
+    "jitter_percent": 0.2
+  },
+  "heartbeat": {
+    "interval": "15s",
+    "timeout": "45s"
+  }
+}

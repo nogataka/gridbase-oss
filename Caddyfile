@@ -1,0 +1,32 @@
+# gridbase Caddyfile
+#
+# 既定はローカル HTTP。GRIDBASE_SITE_SCHEME=http:// のサイトアドレスは自動 HTTPS の対象外です。
+# 値は .env から渡されます（docker-compose.yml の caddy.environment）。
+#
+#   GRIDBASE_SITE_SCHEME   http:// (既定・ローカル) / https:// (本番)
+#   GRIDBASE_ADMIN_DOMAIN  管理画面のホスト名   例 admin.gridbase.localhost / admin.example.org
+#   GRIDBASE_BASE_DOMAIN   トンネルのベースドメイン 例 gridbase.localhost / tunnel.example.com
+#
+# 本番(https://)でワイルドカード証明書が必要な場合は、README の「本番運用」にある
+# DNS-01 版 Caddyfile に差し替えてください（Cloudflare 等の DNS プラグイン入り Caddy が必要）。
+
+# 管理画面（Next.js）。トンネルのドメインとは別の登録ドメインに置くことを推奨（README 参照）。
+{$GRIDBASE_SITE_SCHEME}{$GRIDBASE_ADMIN_DOMAIN} {
+	encode zstd gzip
+	reverse_proxy web:3000
+}
+
+# トンネル経由のサイト: foo.<BASE_DOMAIN> -> トンネルサーバー(HTTP :9080)
+# トンネル本体のポート(9443)は Caddy を通さず、compose から直接公開されます。
+{$GRIDBASE_SITE_SCHEME}*.{$GRIDBASE_BASE_DOMAIN} {
+	reverse_proxy tunnel:9080
+}
+
+# Directus は既定で外部に公開しません（compose ネットワーク内のみ）。
+# 管理 UI を公開する場合は下のブロックを有効にし、強いパスワードと IP 制限を付けてください。
+# 注意: トンネルのワイルドカードより具体的なホスト名が優先されるため、"directus" という
+# サブドメインはトンネル用に使えなくなります。
+#
+# {$GRIDBASE_SITE_SCHEME}directus.{$GRIDBASE_BASE_DOMAIN} {
+# 	reverse_proxy directus:8055
+# }

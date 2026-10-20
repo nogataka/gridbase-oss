@@ -1,0 +1,20 @@
+{
+  "base_domain": "tunnel.example.com",
+  "tls": {
+    "cert": "/etc/gridbase/tls/tunnel.crt",
+    "key": "/etc/gridbase/tls/tunnel.key"
+  },
+  "tunnel": {
+    "port": 9443
+  },
+  "http": {
+    "port": 9080
+  },
+  "admin": {
+    "bearer_token": "replace-with-a-long-random-token",
+    "cors_origin": "https://console.example.com"
+  },
+  "directus": {
+    "url": "https://directus.example.com"
+  }
+}

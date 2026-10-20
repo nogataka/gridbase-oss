@@ -1,0 +1,53 @@
+{
+  "name": "gridbase-web",
+  "version": "0.1.0",
+  "private": true,
+  "description": "GridBase admin web (sign-in, API keys, subdomains, user management)",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "seed-admin": "node scripts/seed-admin.mjs",
+    "test": "tsx --test \"src/**/*.test.ts\" \"scripts/*.test.mjs\""
+  },
+  "dependencies": {
+    "@emotion/react": "^11.10.6",
+    "@mantine/core": "^6.0.22",
+    "@mantine/form": "^6.0.22",
+    "@mantine/hooks": "^6.0.22",
+    "@mantine/notifications": "^6.0.22",
+    "@tabler/icons-react": "^2.47.0",
+    "bcryptjs": "^3.0.3",
+    "next": "^14.2.0",
+    "next-auth": "^4.24.0",
+    "nodemailer": "^10.1.7",
+    "react": "18.2.0",
+    "react-dom": "18.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/nodemailer": "^8.0.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "eslint": "^8.57.0",
+    "eslint-config-next": "^14.2.0",
+    "tsx": "^4.23.15",
+    "typescript": "^5.4.0"
+  },
+  "overrides": {
+    "next-auth": {
+      "nodemailer": "$nodemailer"
+    }
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/nogataka/gridbase-oss.git",
+    "directory": "web"
+  }
+}

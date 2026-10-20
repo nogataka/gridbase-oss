@@ -1,0 +1,21 @@
+{
+  "base_domain": "gridbase.localhost",
+  "tunnel": {
+    "port": 9443
+  },
+  "http": {
+    "port": 9080,
+    "read_timeout": 15,
+    "write_timeout": 40,
+    "idle_timeout": 60,
+    "trusted_proxies": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]
+  },
+  "admin": {
+    "host": "tunnel-admin.internal",
+    "cors_origin": "",
+    "timezone": "UTC"
+  },
+  "directus": {
+    "url": "http://directus:8055"
+  }
+}
