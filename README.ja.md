@@ -12,9 +12,9 @@ English: [README.md](./README.md)
 
 以下のコマンドは macOS と Linux 向けです。Windows では WSL2 の中で実行してください。イメージのビルドが終われば、手順は数分で終わります。
 
-必要なものは、Docker（Compose v2）と、手元で空いているポート `80`・`443`・`9443` です。埋まっているポートがあれば、先に `.env` で別のポートに変えてください。手順は [ポートの変更](./docs/configuration.md#changing-ports)（英語）にあります。HTTP のポートを変えた場合（例: `18080`）は、以下の URL すべてにその番号を付けてください（`http://admin.gridbase.localhost:18080/signin`、`http://foo.gridbase.localhost:18080/`）。
+必要なものは、Docker（Compose v2）、手順 5 のサンプルアプリ用の Python 3（手持ちの Web アプリでも代わりになります）、手元で空いているポート `80`・`443`・`9443` です。埋まっているポートがあれば、先に `.env` で別のポートに変えてください。手順は [ポートの変更](./docs/configuration.md#changing-ports)（英語）にあります。HTTP のポートを変えた場合（例: `18080`）は、以下の URL すべてにその番号を付けてください（`http://admin.gridbase.localhost:18080/signin`、`http://foo.gridbase.localhost:18080/`）。
 
-既定では、ポートは `127.0.0.1` にだけ公開されます。同じネットワークの他のコンピュータからは届きません。
+既定では、gridbase のコンテナのポートは `127.0.0.1` にだけ公開されます。同じネットワークの他のコンピュータからは届きません（手順 5 で起動するサンプルアプリは別のプログラムです。手順 5 の注意を読んでください）。
 
 管理画面は日本語のみです。以下の画面名とボタン名は、画面に表示されるとおりに書いています。
 
@@ -82,15 +82,18 @@ gridbase-web-1             web             Up 25 seconds (healthy)
 
 ### 5. ローカルアプリを起動して 30 秒待つ
 
-新しいターミナルで、適当な Web アプリを `8000` 番で起動します。
+新しいターミナルで、適当な Web アプリを `8000` 番で起動します。このサンプルは、リポジトリではなく専用のフォルダから 1 ページだけを配信します（`.env` が配信されることはありません）。
 
 ```sh
-python3 -m http.server 8000
+mkdir -p /tmp/gridbase-demo && echo 'hello from my laptop' > /tmp/gridbase-demo/index.html
+python3 -m http.server 8000 --directory /tmp/gridbase-demo
 ```
+
+`python3 -m http.server` はすべてのネットワークインターフェースで待ち受けます。起動している間は、同じネットワークの他のコンピュータからもこのページを開けます。配信するのはデモ用のフォルダだけにして、試し終わったら `Ctrl+C` で止めてください。
 
 `8000` 番が使用中（コマンドが `Address already in use` で止まる）なら、別の番号（例: `8765`）にして、上のダイアログとこのコマンドで同じ番号を使ってください。
 
-最初のターミナルに戻り、**30 秒**待ちます。トンネルサーバーは 30 秒ごとにデータベースを読み直すので、作成したばかりのサブドメインや API キーはすぐには認識されません。サーバーがまだ知らないキーで接続したクライアントは、再試行せずに終了します。
+最初のターミナルに戻り、**30 秒**待ちます。トンネルサーバーはおよそ 30 秒ごとにデータベースを読み直す（データベースの応答が遅いときや障害時はもっとかかる）ので、作成したばかりのサブドメインや API キーはすぐには認識されません。サーバーがまだ知らないキーで接続したクライアントは、再試行せずに終了します。
 
 ```sh
 sleep 30
@@ -114,7 +117,7 @@ docker compose run --rm --no-deps --entrypoint gridbase-tunnel-client tunnel \
 [gridbase-client] ... connected remote=... attempts=1 successes=1
 ```
 
-すぐに終了してしまったときは、あと 30 秒待ってからもう一度実行してください。サーバーがまだキーを知らなかった可能性があります。
+すぐに終了してしまったときは、あと 30 秒待ってからもう一度実行してください。サーバーがまだキーを知らなかった可能性があります。何度も終了するときは、`docker compose logs tunnel` で同期のエラーが出ていないか確認してください。
 
 クライアントをホスト上で動かしたい場合（バイナリ、Linux 用のビルド済み、TLS）は、[ホストで動かすクライアント](./docs/configuration.md#client-on-the-host-binary)（英語）を見てください。
 
@@ -126,21 +129,27 @@ docker compose run --rm --no-deps --entrypoint gridbase-tunnel-client tunnel \
 curl http://foo.gridbase.localhost/
 ```
 
-手元のアプリのページが返ってきます。上の Python サーバーなら、タイトルが `Directory listing for /` の HTML です。Python のターミナルには `"GET / HTTP/1.1" 200` が出ます。ブラウザで <http://foo.gridbase.localhost/> を開いても確認できます。
+手元のアプリのページが返ってきます。上のサンプルなら `hello from my laptop` と表示されます。Python のターミナルには `"GET / HTTP/1.1" 200` が出ます。ブラウザで <http://foo.gridbase.localhost/> を開いても確認できます。
 
 エラーコードが返るときは、[トラブルシューティング](./docs/troubleshooting.md)（英語）を見てください。
 
 ### 止め方と片付け方
 
-クライアントと Python サーバーを `Ctrl+C` で止めてから、次を実行します。
+クライアントと Python サーバーを `Ctrl+C` で止めます。
+
+データ（ユーザー、API キー、サブドメイン）を残したまま止めるときは、次を実行します。
 
 ```sh
-docker compose down        # コンテナを止めて削除する。データ（ユーザー、API キー、サブドメイン）は残る
-docker compose down -v     # データのボリュームも削除する。次の起動はまっさらな状態になる
-rm .env                    # 任意。down -v のあとで
+docker compose down
 ```
 
-`docker compose down -v` には `.env` が要ります。先に消してしまったときは、`cp .env.example .env` してからやり直してください。
+まっさらな状態からやり直したいときは、データのボリュームも削除します。ユーザー、API キー、サブドメインがすべて消え、元に戻せません。
+
+```sh
+docker compose down -v
+```
+
+不要になった `.env` は、そのあと `rm .env` で消せます。`docker compose down -v` には `.env` が要ります。先に消してしまったときは、`cp .env.example .env` してからやり直してください。
 
 ## 次に読むもの
 
@@ -164,7 +173,7 @@ rm .env                    # 任意。down -v のあとで
 - 管理画面の UI は日本語のみです。多言語化の仕組みはありません。
 - 1 つのトンネルで同時に処理できるリクエストは 1 つです。本文は全量をメモリに載せます。リクエストごとに 30 秒の固定タイムアウトがあります。
 - WebSocket、Server-Sent Events、ストリーミング応答は使えません。
-- サブドメインや API キーの変更が、トンネルサーバーに届くまで最大 30 秒かかります。
+- サブドメインや API キーの変更がトンネルサーバーに届くまで、通常は 30 秒ほどかかります。データベースの応答が遅いときや障害時は、もっとかかります。
 - 接続時にサーバーが API キーを知らないと、クライアントは終了します。再起動してください。
 - 管理画面のレート制限はメモリ内です。コンテナ 1 台での利用を想定しています。
 

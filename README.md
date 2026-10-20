@@ -12,9 +12,9 @@ Self-hosted HTTP tunnel with an admin console, in one `docker compose` stack.
 
 The commands below are for macOS and Linux. On Windows, run them in WSL2. Once the images are built, the steps take a few minutes.
 
-You need Docker with Compose v2, and free ports `80`, `443` and `9443` on your machine. If one is taken, set another port in `.env` first. See [Changing ports](./docs/configuration.md#changing-ports). If you change the HTTP port (for example to `18080`), add it to every URL below, such as `http://admin.gridbase.localhost:18080/signin` and `http://foo.gridbase.localhost:18080/`.
+You need Docker with Compose v2, Python 3 for the sample app in step 5 (any web app of your own works too), and free ports `80`, `443` and `9443` on your machine. If one is taken, set another port in `.env` first. See [Changing ports](./docs/configuration.md#changing-ports). If you change the HTTP port (for example to `18080`), add it to every URL below, such as `http://admin.gridbase.localhost:18080/signin` and `http://foo.gridbase.localhost:18080/`.
 
-By default, the ports are published on `127.0.0.1` only. Other computers on your network cannot reach this stack.
+By default, the ports of the gridbase containers are published on `127.0.0.1` only. Other computers on your network cannot reach them. (The sample app you start in step 5 is a separate program on your machine; see the note there.)
 
 The admin console is in Japanese only. Button names below are written as Japanese (English).
 
@@ -82,15 +82,18 @@ Click `作成` (Create). A green notice `成功` (Success) appears, and a row `f
 
 ### 5. Start a local app and wait 30 seconds
 
-In a new terminal, start any web app on port `8000`:
+In a new terminal, start any web app on port `8000`. This sample serves one page from a folder of its own, not from the repository (so `.env` is never served):
 
 ```sh
-python3 -m http.server 8000
+mkdir -p /tmp/gridbase-demo && echo 'hello from my laptop' > /tmp/gridbase-demo/index.html
+python3 -m http.server 8000 --directory /tmp/gridbase-demo
 ```
+
+`python3 -m http.server` listens on all network interfaces, so other computers on your network can open this page while it runs. Serve only the demo folder, and stop it with `Ctrl+C` when you are done.
 
 If port `8000` is in use (the command stops with `Address already in use`), pick another one (for example `8765`) and use the same number in the dialog above and in the command.
 
-Back in your first terminal, wait **30 seconds**. The tunnel server re-reads the database every 30 seconds, so a new subdomain or API key is not known to it right away. A client that connects with a key the server does not know yet exits instead of retrying.
+Back in your first terminal, wait **30 seconds**. The tunnel server re-reads the database about every 30 seconds (longer if the database is slow or failing), so a new subdomain or API key is not known to it right away. A client that connects with a key the server does not know yet exits instead of retrying.
 
 ```sh
 sleep 30
@@ -114,7 +117,7 @@ On success the client prints lines like these and keeps running. Leave it runnin
 [gridbase-client] ... connected remote=... attempts=1 successes=1
 ```
 
-If the client exits right away, wait 30 more seconds and run it again. The server probably did not know the key yet.
+If the client exits right away, wait 30 more seconds and run it again. The server probably did not know the key yet. If it keeps exiting, check `docker compose logs tunnel` for sync errors.
 
 To run the client on the host (binary, Linux prebuilt, TLS), see [Client on the host](./docs/configuration.md#client-on-the-host-binary).
 
@@ -126,21 +129,27 @@ Back in your first terminal:
 curl http://foo.gridbase.localhost/
 ```
 
-You get the page of your local app. With the Python server above, it is an HTML page titled `Directory listing for /`, and the Python terminal logs `"GET / HTTP/1.1" 200`. You can also open <http://foo.gridbase.localhost/> in a browser.
+You get the page of your local app. With the sample above, it prints `hello from my laptop`, and the Python terminal logs `"GET / HTTP/1.1" 200`. You can also open <http://foo.gridbase.localhost/> in a browser.
 
 If you get an error code instead, see [Troubleshooting](./docs/troubleshooting.md).
 
 ### Stop and clean up
 
-Stop the client and the Python server with `Ctrl+C`. Then:
+Stop the client and the Python server with `Ctrl+C`.
+
+To stop the stack and keep your data (users, API keys, subdomains):
 
 ```sh
-docker compose down        # stop and remove the containers; your data (users, API keys, subdomains) is kept
-docker compose down -v     # also delete the data volumes: the next start is a clean install
-rm .env                    # optional, after down -v
+docker compose down
 ```
 
-`docker compose down -v` needs `.env` to exist. If you removed it first, run `cp .env.example .env` and try again.
+To start over from a clean install instead, delete the data volumes. This permanently deletes all users, API keys and subdomains:
+
+```sh
+docker compose down -v
+```
+
+You can also delete `.env` afterwards (`rm .env`) if you no longer need it. `docker compose down -v` needs `.env` to exist. If you removed it first, run `cp .env.example .env` and try again.
 
 ## Read next
 
@@ -162,7 +171,7 @@ rm .env                    # optional, after down -v
 - The console UI is Japanese only. There is no i18n.
 - One request at a time per tunnel. Bodies are fully buffered in memory. Each request has a fixed 30 second timeout.
 - No WebSocket, Server-Sent Events or streaming responses.
-- A new or changed subdomain or API key takes up to 30 seconds to reach the tunnel server.
+- A new or changed subdomain or API key usually reaches the tunnel server within about 30 seconds. It takes longer if the database is slow or failing.
 - A client whose API key is unknown to the server at connect time exits. Restart it.
 - Rate limiting in the console is in memory, so it fits a single container.
 
