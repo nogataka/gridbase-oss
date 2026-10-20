@@ -1,4 +1,4 @@
-// S-1: パスワードを持たないユーザー（null / 空）は、ダミーのハッシュの元の文字列を含むどんな入力でもログインできない。
+// パスワードを持たないユーザー（null / 空）は、ダミーのハッシュの元の文字列を含むどんな入力でもログインできない。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import bcryptjs from 'bcryptjs';

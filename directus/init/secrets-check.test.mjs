@@ -54,7 +54,7 @@ test('公開構成の判定: bind / https', () => {
   assert.equal(publicDeploymentReasons({ GRIDBASE_ADMIN_URL: 'https://admin.gridbase.localhost' }).length, 1);
 });
 
-test('A-1: bind が 127.0.0.1・http でも、localhost 系以外のドメインなら公開構成', () => {
+test('bind が 127.0.0.1・http でも、localhost 系以外のドメインなら公開構成', () => {
   const reasons = (env) => publicDeploymentReasons(env).length;
   for (const local of ['localhost', 'gridbase.localhost', 'admin.gridbase.localhost', 'app.test', 'svc.internal', 'gridbase.localhost:8080', 'FOO.LOCALHOST']) {
     assert.equal(reasons({ GRIDBASE_BASE_DOMAIN: local }), 0, `BASE_DOMAIN=${local}`);
@@ -71,7 +71,7 @@ test('A-1: bind が 127.0.0.1・http でも、localhost 系以外のドメイン
   assert.equal(reasons({ GRIDBASE_ADMIN_URL: 'garbage' }), 1);
 });
 
-test('A-1: 既定の秘密のまま、bind が 127.0.0.1 でも実ドメインなら起動を止める側（isPublic）になる', () => {
+test('既定の秘密のまま、bind が 127.0.0.1 でも実ドメインなら起動を止める側（isPublic）になる', () => {
   const env = { ...Object.fromEntries(defaults), GRIDBASE_BASE_DOMAIN: 'tunnel.example.org' };
   const result = checkSecrets(env, defaults);
   assert.equal(result.isPublic, true);

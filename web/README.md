@@ -1,6 +1,6 @@
 # gridbase-web
 
-GridBase の管理画面です。Next.js (App Router) + NextAuth + Directus で動きます。
+gridbase の管理画面です。Next.js (App Router) + NextAuth + Directus で動きます。
 
 - サインイン / 新規登録（公開・閉鎖を環境変数で切替）
 - パスワードリセット（SMTP を設定したときだけ有効）

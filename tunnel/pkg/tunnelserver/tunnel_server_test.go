@@ -78,7 +78,7 @@ func TestTunnelServerStatsIncludesActiveConnections(t *testing.T) {
 	ts.metrics.lastReload = now
 	ts.metrics.certExpiry = now.Add(24 * time.Hour)
 
-	domain := config.DomainConfig{APIKey: "key-1", Subdomain: "foo.gridbase.dev", Type: config.DomainTypeHTTP}
+	domain := config.DomainConfig{APIKey: "key-1", Subdomain: "foo.example.test", Type: config.DomainTypeHTTP}
 	ts.domainsByAPIKey["key-1"] = []config.DomainConfig{domain}
 
 	connKey := buildConnectionKey("key-1", config.DomainTypeHTTP, "")
@@ -91,7 +91,7 @@ func TestTunnelServerStatsIncludesActiveConnections(t *testing.T) {
 		bytesIn:          123,
 		bytesOut:         456,
 		errorCounts:      map[string]int{"forward_send": 2},
-		peerCommonName:   "client.gridbase.dev",
+		peerCommonName:   "client.example.test",
 		peerSerialNumber: "ab12",
 		done:             make(chan struct{}),
 	}
@@ -141,7 +141,7 @@ func TestTunnelServerStatsIncludesActiveConnections(t *testing.T) {
 	if got := domainStats.Errors["forward_send"]; got != 2 {
 		t.Errorf("expected domain error count 2, got %d", got)
 	}
-	if len(domainStats.Subdomains) != 1 || domainStats.Subdomains[0] != "foo.gridbase.dev" {
+	if len(domainStats.Subdomains) != 1 || domainStats.Subdomains[0] != "foo.example.test" {
 		t.Errorf("unexpected subdomains: %#v", domainStats.Subdomains)
 	}
 	if domainStats.BytesIn != 123 || domainStats.BytesOut != 456 {
@@ -154,8 +154,8 @@ func TestTunnelServerStatsIncludesActiveConnections(t *testing.T) {
 
 func TestTunnelServerTunnelsSnapshotDeterministic(t *testing.T) {
 	ts := newTestServer()
-	ts.domainsByAPIKey["b-key"] = []config.DomainConfig{{APIKey: "b-key", Subdomain: "beta.gridbase.dev", Type: config.DomainTypeHTTP}}
-	ts.domainsByAPIKey["a-key"] = []config.DomainConfig{{APIKey: "a-key", Subdomain: "alpha.gridbase.dev", Type: config.DomainTypeHTTP}}
+	ts.domainsByAPIKey["b-key"] = []config.DomainConfig{{APIKey: "b-key", Subdomain: "beta.example.test", Type: config.DomainTypeHTTP}}
+	ts.domainsByAPIKey["a-key"] = []config.DomainConfig{{APIKey: "a-key", Subdomain: "alpha.example.test", Type: config.DomainTypeHTTP}}
 
 	now := time.Now()
 	ts.connections[buildConnectionKey("b-key", config.DomainTypeHTTP, "")] = &tunnelConn{
@@ -182,7 +182,7 @@ func TestTunnelServerTunnelsSnapshotDeterministic(t *testing.T) {
 	if snapshot[0].APIKey != "a-key" || snapshot[1].APIKey != "b-key" {
 		t.Fatalf("snapshot not sorted by api key: %#v", snapshot)
 	}
-	if snapshot[0].Subdomains[0] != "alpha.gridbase.dev" {
+	if snapshot[0].Subdomains[0] != "alpha.example.test" {
 		t.Errorf("unexpected subdomain for a-key: %#v", snapshot[0].Subdomains)
 	}
 	if snapshot[0].Mode != config.DomainTypeHTTP {
@@ -194,7 +194,7 @@ func TestTunnelServerTunnelsSnapshotDeterministic(t *testing.T) {
 
 	// Mutate the returned slice and ensure internal state is unaffected.
 	snapshot[0].Subdomains[0] = "mutated"
-	if ts.domainsByAPIKey["a-key"][0].Subdomain != "alpha.gridbase.dev" {
+	if ts.domainsByAPIKey["a-key"][0].Subdomain != "alpha.example.test" {
 		t.Errorf("internal domain state mutated by snapshot")
 	}
 }
@@ -590,7 +590,7 @@ func TestHandleConnectionRegistersConnectionAndLogs(t *testing.T) {
 
 	domain := config.DomainConfig{
 		APIKey:    "alpha",
-		Subdomain: "alpha.gridbase.dev",
+		Subdomain: "alpha.example.test",
 		LocalURL:  "http://localhost:8080",
 		Type:      config.DomainTypeHTTP,
 	}
@@ -634,7 +634,7 @@ func TestHandleConnectionRegistersConnectionAndLogs(t *testing.T) {
 	if snapshot[0].APIKey != "alpha" {
 		t.Fatalf("unexpected api key in snapshot: %s", snapshot[0].APIKey)
 	}
-	if len(snapshot[0].Subdomains) != 1 || snapshot[0].Subdomains[0] != "alpha.gridbase.dev" {
+	if len(snapshot[0].Subdomains) != 1 || snapshot[0].Subdomains[0] != "alpha.example.test" {
 		t.Fatalf("unexpected subdomains in snapshot: %#v", snapshot[0].Subdomains)
 	}
 

@@ -1,4 +1,4 @@
-// seed-admin.mjs の公開構成での振る舞い（M1-R / A-1）。
+// seed-admin.mjs の公開構成での振る舞い。
 // 偽の Directus（node:http）を立て、seed-admin を子プロセスで実行して終了コードを見る。
 // 実行: npm test（tsx --test が scripts/*.test.mjs も拾う）
 import { test } from 'node:test';
@@ -70,7 +70,7 @@ async function withDirectus(admins, fn, others = []) {
   }
 }
 
-test('M1-R: 公開構成・GRIDBASE_ADMIN_PASSWORD 未設定でも、DB の管理者が既定パスワードなら exit 3', async () => {
+test('公開構成・GRIDBASE_ADMIN_PASSWORD 未設定でも、DB の管理者が既定パスワードなら exit 3', async () => {
   await withDirectus([adminRow(hashOf(DEFAULT_PASSWORD))], async (fake, conn) => {
     const r = await runSeed({ ...conn, ...publicBind });
     assert.equal(r.status, 3, r.out);
@@ -79,38 +79,38 @@ test('M1-R: 公開構成・GRIDBASE_ADMIN_PASSWORD 未設定でも、DB の管�
   });
 });
 
-test('M1-R: 公開構成・GRIDBASE_ADMIN_PASSWORD が強度不足でも、DB が既定パスワードなら exit 3（exit 1 で web が続行しない）', async () => {
+test('公開構成・GRIDBASE_ADMIN_PASSWORD が強度不足でも、DB が既定パスワードなら exit 3（exit 1 で web が続行しない）', async () => {
   await withDirectus([adminRow(hashOf(DEFAULT_PASSWORD))], async (_fake, conn) => {
     const r = await runSeed({ ...conn, ...publicBind, GRIDBASE_ADMIN_EMAIL: 'admin@example.org', GRIDBASE_ADMIN_PASSWORD: 'weak' });
     assert.equal(r.status, 3, r.out);
   });
 });
 
-test('M1-R: 公開構成・強い新パスワードを .env に残していても、DB が既定パスワードなら exit 3', async () => {
+test('公開構成・強い新パスワードを .env に残していても、DB が既定パスワードなら exit 3', async () => {
   await withDirectus([adminRow(hashOf(DEFAULT_PASSWORD))], async (_fake, conn) => {
     const r = await runSeed({ ...conn, ...publicBind, GRIDBASE_ADMIN_EMAIL: 'admin@example.org', GRIDBASE_ADMIN_PASSWORD: 'Str0ng-and-unique-9' });
     assert.equal(r.status, 3, r.out);
   });
 });
 
-test('M1-R: 公開構成・検査対象の管理者のパスワードが変更済みなら、GRIDBASE_ADMIN_PASSWORD 未設定で exit 0', async () => {
+test('公開構成・検査対象の管理者のパスワードが変更済みなら、GRIDBASE_ADMIN_PASSWORD 未設定で exit 0', async () => {
   await withDirectus([adminRow(hashOf('Changed-by-the-owner-77'))], async (_fake, conn) => {
     const r = await runSeed({ ...conn, ...publicBind });
     assert.equal(r.status, 0, r.out);
   });
 });
 
-test('M1-R: 公開構成で Directus に届かないなら fail-closed（exit 3）', async () => {
+test('公開構成で Directus に届かないなら fail-closed（exit 3）', async () => {
   const r = await runSeed({ DIRECTUS_URL: 'http://127.0.0.1:1', DIRECTUS_TOKEN: 'test-token-not-a-secret', ...publicBind });
   assert.equal(r.status, 3, r.out);
 });
 
-test('M1-R: 公開構成で DIRECTUS_TOKEN が無いなら fail-closed（exit 3）', async () => {
+test('公開構成で DIRECTUS_TOKEN が無いなら fail-closed（exit 3）', async () => {
   const r = await runSeed({ ...publicBind });
   assert.equal(r.status, 3, r.out);
 });
 
-test('M1-R: 公開構成でパスワード欄が読めない / ハッシュに見えないなら fail-closed（exit 3）', async () => {
+test('公開構成でパスワード欄が読めない / ハッシュに見えないなら fail-closed（exit 3）', async () => {
   for (const row of [{ userId: 'u1', email: 'admin@example.org', status: 'active' }, adminRow('**********'), adminRow(12345)]) {
     await withDirectus([row], async (_fake, conn) => {
       const r = await runSeed({ ...conn, ...publicBind });
@@ -119,21 +119,21 @@ test('M1-R: 公開構成でパスワード欄が読めない / ハッシュに�
   }
 });
 
-test('M1-R: 公開構成で .env の GRIDBASE_ADMIN_PASSWORD が既定のままなら、Directus を見る前に exit 3', async () => {
+test('公開構成で .env の GRIDBASE_ADMIN_PASSWORD が既定のままなら、Directus を見る前に exit 3', async () => {
   await withDirectus([], async (_fake, conn) => {
     const r = await runSeed({ ...conn, ...publicBind, GRIDBASE_ADMIN_EMAIL: 'admin@example.org', GRIDBASE_ADMIN_PASSWORD: DEFAULT_PASSWORD });
     assert.equal(r.status, 3, r.out);
   });
 });
 
-test('S-1: 公開構成でも、パスワードが null / 空の管理者は検査対象外（web の認証がサインインを拒否する前提。password-check.test.ts）', async () => {
+test('公開構成でも、パスワードが null / 空の管理者は検査対象外（web の認証がサインインを拒否する前提。password-check.test.ts）', async () => {
   await withDirectus([adminRow(null), { ...adminRow(''), userId: 'u2', email: 'empty@example.org' }], async (_fake, conn) => {
     const r = await runSeed({ ...conn, ...publicBind });
     assert.equal(r.status, 0, r.out);
   });
 });
 
-test('S-2: 公開構成では、無効（inactive）な管理者の既定パスワードも exit 3', async () => {
+test('公開構成では、無効（inactive）な管理者の既定パスワードも exit 3', async () => {
   await withDirectus([{ ...adminRow(hashOf(DEFAULT_PASSWORD)), status: 'inactive' }], async (_fake, conn) => {
     const r = await runSeed({ ...conn, ...publicBind });
     assert.equal(r.status, 3, r.out);
@@ -141,7 +141,7 @@ test('S-2: 公開構成では、無効（inactive）な管理者の既定パス�
   });
 });
 
-test('S-2: 公開構成では、既定の管理者メールのユーザーは role=user・inactive でも既定パスワードなら exit 3', async () => {
+test('公開構成では、既定の管理者メールのユーザーは role=user・inactive でも既定パスワードなら exit 3', async () => {
   for (const status of ['active', 'inactive']) {
     await withDirectus(
       [adminRow(hashOf('Changed-by-the-owner-77'))],
@@ -155,7 +155,7 @@ test('S-2: 公開構成では、既定の管理者メールのユーザーは ro
   }
 });
 
-test('S-2: 公開構成でも、既定でないメールの一般ユーザーは対象外（既定パスワードでも止めない）', async () => {
+test('公開構成でも、既定でないメールの一般ユーザーは対象外（既定パスワードでも止めない）', async () => {
   await withDirectus(
     [adminRow(hashOf('Changed-by-the-owner-77'))],
     async (_fake, conn) => {
@@ -166,7 +166,7 @@ test('S-2: 公開構成でも、既定でないメールの一般ユーザーは
   );
 });
 
-test('S-2: ローカル構成では、降格した既定の管理者がいても起動を止めない', async () => {
+test('ローカル構成では、降格した既定の管理者がいても起動を止めない', async () => {
   await withDirectus(
     [adminRow(hashOf('Changed-by-the-owner-77'))],
     async (_fake, conn) => {
@@ -177,7 +177,7 @@ test('S-2: ローカル構成では、降格した既定の管理者がいても
   );
 });
 
-test('A-1: bind が 127.0.0.1・http でも、実ドメインなら公開構成として DB を検査する', async () => {
+test('bind が 127.0.0.1・http でも、実ドメインなら公開構成として DB を検査する', async () => {
   for (const extra of [{ GRIDBASE_BASE_DOMAIN: 'tunnel.example.org' }, { GRIDBASE_ADMIN_DOMAIN: 'admin.example.org' }, { NEXTAUTH_URL: 'http://admin.example.org' }]) {
     await withDirectus([adminRow(hashOf(DEFAULT_PASSWORD))], async (_fake, conn) => {
       const r = await runSeed({ ...conn, ...localEnv, ...extra });

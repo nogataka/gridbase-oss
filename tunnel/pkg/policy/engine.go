@@ -39,8 +39,9 @@ func (e *ViolationError) Error() string {
 
 // Engine evaluates HTTP requests against domain policies.
 //
-// By default the client address is the TCP peer address (RemoteAddr);
-// X-Forwarded-For and X-Real-IP are ignored because any visitor can forge them.
+// By default the client address is the TCP peer address (RemoteAddr) and the
+// protocol is derived from the connection (TLS or not); X-Forwarded-For,
+// X-Real-IP and X-Forwarded-Proto are ignored because any visitor can forge them.
 // They are honoured only for requests that arrive from a trusted proxy (see
 // SetTrustedProxies).
 type Engine struct {
@@ -67,6 +68,23 @@ func (e *Engine) trustedProxies() []*net.IPNet {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 	return e.trusted
+}
+
+// StripUntrustedForwarding removes forwarding headers (X-Forwarded-*, X-Real-IP,
+// Forwarded) from header unless remoteAddr is a trusted proxy. Call it before
+// relaying a request to the tunnel client so that a value forged by a visitor
+// who reached the HTTP port directly is not presented to the backend as if a
+// proxy had written it. Requests from trusted proxies are left untouched.
+func (e *Engine) StripUntrustedForwarding(header http.Header, remoteAddr string) {
+	if len(header) == 0 || ipInNets(peerAddress(remoteAddr), e.trustedProxies()) {
+		return
+	}
+	for key := range header {
+		canonical := http.CanonicalHeaderKey(key)
+		if strings.HasPrefix(canonical, "X-Forwarded-") || canonical == "X-Real-Ip" || canonical == "Forwarded" {
+			delete(header, key)
+		}
+	}
 }
 
 // RequestContext captures metadata required for policy evaluation.
@@ -124,7 +142,7 @@ func (e *Engine) checkProtocol(policy config.DomainPolicy, ctx RequestContext) e
 		return nil
 	}
 
-	protocol := detectProtocol(ctx)
+	protocol := detectProtocol(ctx, e.trustedProxies())
 	if _, ok := allowed[protocol]; ok {
 		return nil
 	}
@@ -216,16 +234,37 @@ func (e *Engine) checkRequestSize(policy config.DomainPolicy, ctx RequestContext
 	}
 }
 
-func detectProtocol(ctx RequestContext) string {
-	if ctx.Header != nil {
-		if proto := ctx.Header.Get("X-Forwarded-Proto"); proto != "" {
-			return strings.ToLower(strings.TrimSpace(strings.Split(proto, ",")[0]))
+// detectProtocol returns "https" or "http" for the visitor's connection.
+//
+// X-Forwarded-Proto is consulted only when the TCP peer is a trusted proxy;
+// from any other peer the header is forgeable, so the protocol is taken from
+// the connection itself (ctx.TLS). Like X-Forwarded-For it is read from the
+// right, i.e. the value written by the proxy nearest to this server, so a value
+// the visitor prepended to a header the proxy appends to is never used.
+func detectProtocol(ctx RequestContext, trusted []*net.IPNet) string {
+	if ctx.Header != nil && peerIsTrusted(ctx, trusted) {
+		var last string
+		for _, line := range ctx.Header.Values("X-Forwarded-Proto") {
+			for _, part := range strings.Split(line, ",") {
+				if candidate := strings.ToLower(strings.TrimSpace(part)); candidate != "" {
+					last = candidate
+				}
+			}
+		}
+		if last != "" {
+			return last
 		}
 	}
 	if ctx.TLS {
 		return "https"
 	}
 	return "http"
+}
+
+// peerIsTrusted reports whether the TCP peer of ctx is one of the trusted
+// proxies. It is the single trust decision shared by every forwarding header.
+func peerIsTrusted(ctx RequestContext, trusted []*net.IPNet) bool {
+	return len(trusted) > 0 && ipInNets(peerAddress(ctx.RemoteAddr), trusted)
 }
 
 // extractClientIP returns the address the allow list is checked against.
@@ -237,7 +276,7 @@ func detectProtocol(ctx RequestContext) string {
 // proxy configured (the default) the header is ignored entirely.
 func extractClientIP(ctx RequestContext, trusted []*net.IPNet) string {
 	peer := peerAddress(ctx.RemoteAddr)
-	if len(trusted) == 0 || ctx.Header == nil || !ipInNets(peer, trusted) {
+	if ctx.Header == nil || !peerIsTrusted(ctx, trusted) {
 		return peer
 	}
 

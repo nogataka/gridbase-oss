@@ -42,7 +42,7 @@ JSON file (`--config`, default `config/server.json`). Every environment variable
 | `http.read_timeout` / `write_timeout` / `idle_timeout` | | unset | Seconds. |
 | `http.max_request_body_bytes` | `GRIDBASE_HTTP_MAX_REQUEST_BODY_BYTES` | `33554432` (32 MiB) | Ceiling for a visitor's request body (`413` above it). A subdomain's `max_request_bytes` policy can only lower it. |
 | `http.max_response_body_bytes` | `GRIDBASE_HTTP_MAX_RESPONSE_BODY_BYTES` | `33554432` (32 MiB) | Ceiling for the response body a tunnel client sends back. A subdomain's `max_response_bytes` policy can only lower it. Above the limit the visitor gets `502` and the tunnel connection is dropped (the client reconnects). |
-| `http.trusted_proxies` | `GRIDBASE_HTTP_TRUSTED_PROXIES` (comma separated) | empty | IPs / CIDRs of reverse proxies in front of `http.port`. See "Client IP and `ip_allow_list`" below. |
+| `http.trusted_proxies` | `GRIDBASE_HTTP_TRUSTED_PROXIES` (comma separated) | empty | IPs / CIDRs of reverse proxies in front of `http.port`. See "Client IP and `ip_allow_list`" and "Protocol and `allowed_protocols`" below. |
 | `tunnel.port` | `GRIDBASE_TUNNEL_PORT` | `9443` | Port the clients connect to. Expose it directly, not through an HTTP proxy. |
 | `tunnel.max_frame_bytes` | `GRIDBASE_TUNNEL_MAX_FRAME_BYTES` | `16777216` (16 MiB) | Largest protocol frame accepted from a tunnel connection. A longer length header closes the connection immediately, before anything is allocated. The hello that precedes authentication is capped at 64 KiB regardless. |
 | `tunnel.handshake_timeout` | `GRIDBASE_TUNNEL_HANDSHAKE_TIMEOUT` | `10` | Seconds a new tunnel connection has to finish the TLS handshake and send its hello. Silent or trickling peers are dropped. |
@@ -77,7 +77,11 @@ The address checked against `ip_whitelist` is the TCP peer address of the connec
 
 Behind a reverse proxy (Caddy, nginx, a load balancer) list the proxy in `http.trusted_proxies`. For requests that arrive from a trusted proxy the server then reads `X-Forwarded-For` from the right, skips entries added by trusted proxies, and uses the first remaining address, so a value the visitor prepended is never used. The proxy must overwrite or append to the header rather than pass a visitor-supplied one through unchanged (Caddy does by default; nginx needs `proxy_set_header X-Forwarded-For $remote_addr;` when it is the first hop). The compose stack's `config/server.compose.json` trusts the private ranges because only Caddy can reach port 9080 there. Never expose `http.port` directly to the internet while it trusts proxies.
 
-`allowed_protocols` still reads `X-Forwarded-Proto` as sent; treat it as a convenience for proxied setups, not as an access control.
+### Protocol and `allowed_protocols`
+
+`allowed_protocols` follows the same trust rule. From a peer that is **not** in `http.trusted_proxies` the protocol is `https` only if the connection to `http.port` itself is TLS, otherwise `http`; a visitor-supplied `X-Forwarded-Proto` is ignored, so an `https`-only policy cannot be bypassed by sending `X-Forwarded-Proto: https` over plain HTTP. From a trusted proxy the server believes `X-Forwarded-Proto` (the rightmost value, i.e. the one the nearest proxy wrote; a missing header falls back to the connection). With the default empty `trusted_proxies`, an `https`-only policy therefore rejects everything unless TLS terminates at `http.port` itself, so list your TLS-terminating proxy. The compose stack (Caddy, trusted private ranges) behaves as before because Caddy sets `X-Forwarded-Proto` itself.
+
+Forwarding headers are also not relayed blindly: for requests from a peer that is not a trusted proxy, every `X-Forwarded-*`, `X-Real-IP` and `Forwarded` header is dropped before the request goes to the tunnel client, so the backend never sees a value a visitor forged by hitting `http.port` directly. Headers from trusted proxies pass through unchanged, and `default_headers` from the policy are still added.
 
 ### HTTP endpoints (port `http.port`)
 
@@ -147,7 +151,7 @@ If the server rejects the handshake (for example an unknown API key) the client 
 - **API keys are never written to logs, the admin API, metrics, request ids or error messages.** Tunnels are identified by a key fingerprint (`key_id`: the first 12 hex characters of the SHA-256 of the key) in logs and in `/api/tunnels` / `/api/metrics`; request ids are random. The key still travels in the handshake, so protect the transport, not just the logs. Keys are used as in-memory map keys only.
 - The admin bearer token must stay server-side and is compared in constant time. The admin API stays disabled until a non-placeholder token of at least 24 characters is configured. Do not embed it in browser code; leave `admin.cors_origin` empty unless a browser really needs to call it.
 - The tunnel port accepts unauthenticated connections by design. Mitigations built in: 10 s handshake deadline (covers TLS), 64 KiB hello limit, 16 MiB frame limit, lengths are checked before any allocation. Put per-IP connection limits in front of it (firewall / `iptables` `connlimit`) if it faces the open internet.
-- `ip_allow_list` ignores forwarding headers unless the proxy is listed in `http.trusted_proxies` (see above).
+- `ip_allow_list` and `allowed_protocols` ignore forwarding headers (`X-Forwarded-For`, `X-Real-IP`, `X-Forwarded-Proto`) unless the proxy is listed in `http.trusted_proxies`, and those headers are not relayed to the backend from untrusted peers (see above).
 
 ## Known limitations
 

@@ -2,6 +2,7 @@ package policy
 
 import (
 	"errors"
+	"net"
 	"net/http"
 	"reflect"
 	"testing"
@@ -274,6 +275,113 @@ func TestEngineEvaluateTCP(t *testing.T) {
 				t.Fatalf("unexpected violation code: got %s want %s", vErr.Code, c.wantErrCode)
 			}
 		})
+	}
+}
+
+func TestDetectProtocol(t *testing.T) {
+	trusted, err := config.ParseTrustedProxies([]string{"10.0.0.0/8"})
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	xfp := func(values ...string) http.Header {
+		h := http.Header{}
+		for _, v := range values {
+			h.Add("X-Forwarded-Proto", v)
+		}
+		return h
+	}
+
+	cases := []struct {
+		name    string
+		trusted []*net.IPNet
+		ctx     RequestContext
+		want    string
+	}{
+		{"untrusted peer claiming https is http", trusted, RequestContext{RemoteAddr: "203.0.113.9:1", Header: xfp("https")}, "http"},
+		{"no trusted proxies configured ignores the header", nil, RequestContext{RemoteAddr: "10.0.0.2:1", Header: xfp("https")}, "http"},
+		{"untrusted peer over TLS is https", trusted, RequestContext{RemoteAddr: "203.0.113.9:1", TLS: true, Header: xfp("http")}, "https"},
+		{"direct TLS without header is https", nil, RequestContext{RemoteAddr: "203.0.113.9:1", TLS: true}, "https"},
+		{"trusted peer: header is adopted", trusted, RequestContext{RemoteAddr: "10.0.0.2:1", Header: xfp("https")}, "https"},
+		{"trusted peer: header value is normalised", trusted, RequestContext{RemoteAddr: "10.0.0.2:1", Header: xfp(" HTTPS ")}, "https"},
+		{"trusted peer: header may downgrade a TLS hop", trusted, RequestContext{RemoteAddr: "10.0.0.2:1", TLS: true, Header: xfp("http")}, "http"},
+		{"trusted peer: no header falls back to the connection", trusted, RequestContext{RemoteAddr: "10.0.0.2:1", Header: http.Header{}}, "http"},
+		{"trusted peer: rightmost value wins over a visitor-prepended one", trusted, RequestContext{RemoteAddr: "10.0.0.2:1", Header: xfp("https, http")}, "http"},
+		{"trusted peer: rightmost across header lines", trusted, RequestContext{RemoteAddr: "10.0.0.2:1", Header: xfp("https", "http")}, "http"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := detectProtocol(tc.ctx, tc.trusted); got != tc.want {
+				t.Fatalf("detectProtocol = %q, want %q", got, tc.want)
+			}
+		})
+	}
+}
+
+func TestEngineProtocolPolicyIgnoresForgedForwardedProto(t *testing.T) {
+	httpsOnly := config.DomainPolicy{AllowedProtocols: []string{"https"}}
+	forged := http.Header{"X-Forwarded-Proto": []string{"https"}}
+
+	cases := []struct {
+		name    string
+		trusted []string
+		ctx     RequestContext
+		wantErr bool
+	}{
+		{"forged https from untrusted peer is rejected", []string{"10.0.0.0/8"}, RequestContext{RemoteAddr: "203.0.113.9:1", Header: forged}, true},
+		{"forged https with no trusted proxies is rejected", nil, RequestContext{RemoteAddr: "203.0.113.9:1", Header: forged}, true},
+		{"https via a trusted proxy is accepted", []string{"10.0.0.0/8"}, RequestContext{RemoteAddr: "10.0.0.2:1", Header: forged}, false},
+		{"plain http via a trusted proxy is rejected", []string{"10.0.0.0/8"}, RequestContext{RemoteAddr: "10.0.0.2:1", Header: http.Header{"X-Forwarded-Proto": []string{"http"}}}, true},
+		{"direct TLS is accepted", nil, RequestContext{RemoteAddr: "203.0.113.9:1", TLS: true}, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			engine := NewEngine()
+			engine.SetTrustedProxies(tc.trusted)
+			_, err := engine.EvaluateRequest(httpsOnly, tc.ctx)
+			var vErr *ViolationError
+			if tc.wantErr {
+				if !errors.As(err, &vErr) || vErr.Code != ViolationProtocol {
+					t.Fatalf("expected protocol violation, got %v", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+func TestStripUntrustedForwarding(t *testing.T) {
+	build := func() http.Header {
+		h := http.Header{}
+		h.Set("X-Forwarded-For", "1.2.3.4")
+		h.Set("X-Forwarded-Proto", "https")
+		h.Set("X-Forwarded-Host", "evil.example")
+		h.Set("X-Real-IP", "1.2.3.4")
+		h.Set("Forwarded", "for=1.2.3.4")
+		h.Set("Accept", "*/*")
+		return h
+	}
+	engine := NewEngine()
+	engine.SetTrustedProxies([]string{"10.0.0.0/8"})
+
+	untrusted := build()
+	engine.StripUntrustedForwarding(untrusted, "203.0.113.9:1")
+	if len(untrusted) != 1 || untrusted.Get("Accept") != "*/*" {
+		t.Fatalf("untrusted peer: only non-forwarding headers may remain, got %#v", untrusted)
+	}
+
+	trustedHdr := build()
+	engine.StripUntrustedForwarding(trustedHdr, "10.0.0.2:1")
+	if !reflect.DeepEqual(trustedHdr, build()) {
+		t.Fatalf("trusted peer: headers must be untouched, got %#v", trustedHdr)
+	}
+
+	none := build()
+	NewEngine().StripUntrustedForwarding(none, "10.0.0.2:1")
+	if len(none) != 1 {
+		t.Fatalf("no trusted proxies configured: every peer is untrusted, got %#v", none)
 	}
 }
 

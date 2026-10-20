@@ -25,7 +25,7 @@ func TestStartTCPStreamRequiresUpstream(t *testing.T) {
 
 func TestStartTCPStreamRejectsNonTCPDomain(t *testing.T) {
 	ts := newTestServer()
-	subdomain := "demo.gridbase.dev"
+	subdomain := "demo.example.test"
 	domain := config.DomainConfig{
 		APIKey:    "demo-key",
 		Subdomain: subdomain,

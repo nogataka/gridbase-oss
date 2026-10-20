@@ -216,7 +216,7 @@ async function main() {
   if (admins.length > 0) {
     warn(
       '管理者は存在しますが、すべて無効（status=inactive）です。新しい管理者は作成しません。' +
-        'Directus の管理 UI で users の status を active に戻してください（README の「Changing credentials after the first start」を参照）',
+        'Directus の管理 UI で users の status を active に戻してください（docs/production.md の「Changing credentials after the first start」を参照）',
     );
     return;
   }

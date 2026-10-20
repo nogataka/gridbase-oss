@@ -30,7 +30,7 @@ func TestMetricsExporterRender(t *testing.T) {
 				BytesOut:         256,
 				Subdomains:       []string{"app"},
 				Errors:           map[string]int{"forward_send": 1},
-				PeerCommonName:   "client.gridbase.dev",
+				PeerCommonName:   "client.example.test",
 				PeerSerialNumber: "abcd",
 			},
 		},

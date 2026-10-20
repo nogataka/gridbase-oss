@@ -131,6 +131,11 @@ func (h *ProxyHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		headerCopy[key] = append([]string(nil), values...)
 	}
 
+	// Forwarding headers are only meaningful when a trusted proxy wrote them; drop
+	// anything a visitor could have forged by reaching the HTTP port directly.
+	// default_headers are added afterwards, so operator-configured values stay.
+	h.tunnel.PolicyEngine().StripUntrustedForwarding(http.Header(headerCopy), r.RemoteAddr)
+
 	for key, value := range defaultHeaders {
 		if key == "" || value == "" {
 			continue

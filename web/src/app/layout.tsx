@@ -9,10 +9,10 @@ export const dynamic = 'force-dynamic';
 
 export const metadata: Metadata = {
   title: {
-    default: 'GridBase',
-    template: '%s | GridBase',
+    default: 'gridbase',
+    template: '%s | gridbase',
   },
-  description: 'GridBase admin console',
+  description: 'gridbase admin console',
   // セルフホストの管理画面なので検索エンジンには載せない
   robots: { index: false, follow: false },
   icons: {

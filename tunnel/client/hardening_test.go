@@ -13,7 +13,7 @@ import (
 	"github.com/nogataka/gridbase-oss/tunnel/protocol"
 )
 
-// S2: the client must hand a redirect back to the visitor, not follow it.
+// The client must hand a redirect back to the visitor, not follow it.
 func TestLocalHTTPClientDoesNotFollowRedirects(t *testing.T) {
 	var internalHits atomic.Int32
 	internal := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +49,7 @@ func TestLocalHTTPClientDoesNotFollowRedirects(t *testing.T) {
 	}
 }
 
-// S3: an oversized local response becomes a 502 instead of being buffered.
+// An oversized local response becomes a 502 instead of being buffered.
 func TestHandleRequestCapsResponseBody(t *testing.T) {
 	app := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write([]byte(strings.Repeat("a", 1000)))
@@ -75,7 +75,7 @@ func TestHandleRequestCapsResponseBody(t *testing.T) {
 	}
 }
 
-// N3: connection errors name the local URL; visitors must not see it.
+// Connection errors name the local URL; visitors must not see it.
 func TestHandleRequestHidesLocalURLFromVisitor(t *testing.T) {
 	cfg := defaultClientConfig()
 	runner := NewRunner(nil, nil)
@@ -103,7 +103,7 @@ func TestClientConfigRejectsNonPositiveBodyLimits(t *testing.T) {
 	}
 }
 
-// S3: a request body streamed from the server is bounded on the client as well.
+// A request body streamed from the server is bounded on the client as well.
 func TestReadRequestBodyEnforcesLimit(t *testing.T) {
 	serverEnd, clientEnd := net.Pipe()
 	defer serverEnd.Close()

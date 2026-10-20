@@ -90,7 +90,7 @@ async function checkDefaultSecrets() {
     for (const p of problems) console.error(`  - ${p}`);
     console.error(
       '[directus-init] 強いランダム値（openssl rand -hex 32 / NEXTAUTH_SECRET は openssl rand -base64 32）に作り直して .env を更新してください。' +
-        'すでに起動済みのデータは .env を変えても変わりません（管理者パスワード・Directus 管理者などの変更手順は README の「Production」を参照）。',
+        'すでに起動済みのデータは .env を変えても変わりません（管理者パスワード・Directus 管理者などの変更手順は docs/production.md の「Changing credentials after the first start」を参照）。',
     );
     process.exit(1);
   }
@@ -238,7 +238,7 @@ async function checkStoredAdminPasswords() {
         ? '[directus-init] 保存済みの管理者のパスワードを確認できないため、公開構成では起動しません。Directus の状態を確認して、もう一度起動してください。'
         : '[directus-init] .env を変えても DB のパスワードは変わりません。一度ローカル構成（GRIDBASE_BIND_ADDRESS=127.0.0.1 かつ http、実ドメインなし）で起動し、' +
             'サインインして「アカウント」画面（/account）でパスワードを変更してから、公開構成に戻してください。' +
-            '新規構築なら docker compose down -v でデータを消してやり直せます（README の「Changing credentials after the first start」を参照）。',
+            '新規構築なら docker compose down -v でデータを消してやり直せます（docs/production.md の「Changing credentials after the first start」を参照）。',
     );
     process.exit(1);
   }

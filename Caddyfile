@@ -7,10 +7,10 @@
 #   GRIDBASE_ADMIN_DOMAIN  管理画面のホスト名   例 admin.gridbase.localhost / admin.example.org
 #   GRIDBASE_BASE_DOMAIN   トンネルのベースドメイン 例 gridbase.localhost / tunnel.example.com
 #
-# 本番(https://)でワイルドカード証明書が必要な場合は、README の「本番運用」にある
+# 本番(https://)でワイルドカード証明書が必要な場合は、docs/production.md の Checklist（手順 5）にある
 # DNS-01 版 Caddyfile に差し替えてください（Cloudflare 等の DNS プラグイン入り Caddy が必要）。
 
-# 管理画面（Next.js）。トンネルのドメインとは別の登録ドメインに置くことを推奨（README 参照）。
+# 管理画面（Next.js）。トンネルのドメインとは別の登録ドメインに置くことを推奨（docs/production.md の Checklist 手順 2 参照）。
 {$GRIDBASE_SITE_SCHEME}{$GRIDBASE_ADMIN_DOMAIN} {
 	encode zstd gzip
 	reverse_proxy web:3000

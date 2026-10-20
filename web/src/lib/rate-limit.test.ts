@@ -18,7 +18,7 @@ test('resetRateLimit は数を戻す', () => {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-test('A-2: 同時に届いた試行でも、検証が走る回数は上限を超えない', async () => {
+test('同時に届いた試行でも、検証が走る回数は上限を超えない', async () => {
   const key = `t3:${Math.random()}`;
   let verified = 0;
   const attempt = async () => {
@@ -32,7 +32,7 @@ test('A-2: 同時に届いた試行でも、検証が走る回数は上限を超
   assert.equal(results.filter((r) => !r.limited).length, 5);
 });
 
-test('A-2: 検証より先に数えるので、限度に達したあとは正しい値でも検証されない', async () => {
+test('検証より先に数えるので、限度に達したあとは正しい値でも検証されない', async () => {
   const key = `t4:${Math.random()}`;
   const wrong = async () => null;
   for (let i = 0; i < 3; i++) assert.deepEqual(await attemptWithLimit(key, 3, 60_000, wrong), { limited: false, value: null });
@@ -45,7 +45,7 @@ test('A-2: 検証より先に数えるので、限度に達したあとは正し
   assert.equal(ran, false);
 });
 
-test('A-2: 成功すると数が戻る（連続ログインで上限に達しない）。失敗は残る', async () => {
+test('成功すると数が戻る（連続ログインで上限に達しない）。失敗は残る', async () => {
   const key = `t5:${Math.random()}`;
   for (let i = 0; i < 20; i++) {
     assert.deepEqual(await attemptWithLimit(key, 3, 60_000, async () => 'ok'), { limited: false, value: 'ok' });
@@ -56,7 +56,7 @@ test('A-2: 成功すると数が戻る（連続ログインで上限に達しな
   assert.deepEqual(await attemptWithLimit(key, 3, 60_000, async () => 'ok'), { limited: true });
 });
 
-test('A-2: 検証が例外を投げても数えたまま残る（例外で上限を回避できない）', async () => {
+test('検証が例外を投げても数えたまま残る（例外で上限を回避できない）', async () => {
   const key = `t6:${Math.random()}`;
   for (let i = 0; i < 2; i++) {
     await assert.rejects(attemptWithLimit(key, 2, 60_000, async () => { throw new Error('db down'); }));

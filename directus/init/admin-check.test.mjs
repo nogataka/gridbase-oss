@@ -1,4 +1,4 @@
-// 保存済みの管理者のパスワード検査（M1-R）。node --test directus/init で実行する（bcryptjs が要る: npm ci）。
+// 保存済みの管理者のパスワード検査。node --test directus/init で実行する（bcryptjs が要る: npm ci）。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import bcryptjs from 'bcryptjs';
@@ -107,12 +107,12 @@ test('ローカル構成でも結果は同じ（扱いを決めるのは呼び�
   assert.equal(r.lines.length, 1);
 });
 
-test('A-1: bind が 127.0.0.1 でも実ドメインなら isPublic', async () => {
+test('bind が 127.0.0.1 でも実ドメインなら isPublic', async () => {
   const r = await evaluate({ ...LOCAL, GRIDBASE_BASE_DOMAIN: 'tunnel.example.org' }, async () => []);
   assert.equal(r.isPublic, true);
 });
 
-// ---- S-2: 検査の対象 -----------------------------------------------------------------
+// ---- 検査の対象 -----------------------------------------------------------------
 
 /** users テーブルの代わり。select(params) が filter に応じた行を返す。 */
 const fakeSelect = (users) => async (params) => {
@@ -125,14 +125,14 @@ const fakeSelect = (users) => async (params) => {
 };
 const user = (email, role, status, password) => ({ userId: `id-${email}`, email, role, status, password });
 
-test('S-2: 無効（inactive）な管理者も検査対象。既定のパスワードなら問題にする', async () => {
+test('無効（inactive）な管理者も検査対象。既定のパスワードなら問題にする', async () => {
   const users = [user('old@example.org', 'admin', 'inactive', hashOf(DEFAULT_PASSWORD))];
   const r = await evaluate({ ...PUBLIC }, () => fetchCheckTargets({ ...PUBLIC }, fakeSelect(users)));
   assert.equal(r.lines.length, 1);
   assert.match(r.lines[0], /^old@example\.org/);
 });
 
-test('S-2: 既定の管理者メールのユーザーは、role=user に降格・無効化されていても検査対象', async () => {
+test('既定の管理者メールのユーザーは、role=user に降格・無効化されていても検査対象', async () => {
   const users = [
     user('admin@gridbase.localhost', 'user', 'active', hashOf(DEFAULT_PASSWORD)),
     user('admin@example.com', 'user', 'inactive', hashOf('change-me-admin-password')),
@@ -143,14 +143,14 @@ test('S-2: 既定の管理者メールのユーザーは、role=user に降格�
   assert.match(r.lines.join('\n'), /admin@example\.com/);
 });
 
-test('S-2: いまの GRIDBASE_ADMIN_EMAIL のユーザーも、降格後に検査対象になる', async () => {
+test('いまの GRIDBASE_ADMIN_EMAIL のユーザーも、降格後に検査対象になる', async () => {
   const env = { ...PUBLIC, GRIDBASE_ADMIN_EMAIL: 'Boss@Example.org' };
   const users = [user('boss@example.org', 'user', 'active', hashOf(DEFAULT_PASSWORD))];
   const r = await evaluate(env, () => fetchCheckTargets(env, fakeSelect(users)));
   assert.equal(r.lines.length, 1);
 });
 
-test('S-2: 既定でないメールの一般ユーザーは対象外（遅くならない）。管理者かつ既定メールの人は 1 回だけ数える', async () => {
+test('既定でないメールの一般ユーザーは対象外（遅くならない）。管理者かつ既定メールの人は 1 回だけ数える', async () => {
   const users = [
     user('someone@example.org', 'user', 'active', hashOf(DEFAULT_PASSWORD)),
     user('admin@gridbase.localhost', 'admin', 'active', hashOf(DEFAULT_PASSWORD)),
@@ -161,7 +161,7 @@ test('S-2: 既定でないメールの一般ユーザーは対象外（遅くな
   assert.equal(r.lines.length, 1);
 });
 
-test('S-2: 検査対象の取得に失敗・形式が想定外なら、fail-closed（取得できなかった）', async () => {
+test('検査対象の取得に失敗・形式が想定外なら、fail-closed（取得できなかった）', async () => {
   const r1 = await evaluate({ ...PUBLIC }, () => fetchCheckTargets({ ...PUBLIC }, async () => ({ not: 'an array' })));
   assert.equal(r1.checked, null);
   const r2 = await evaluate({ ...PUBLIC }, () =>
@@ -172,7 +172,7 @@ test('S-2: 検査対象の取得に失敗・形式が想定外なら、fail-clos
   assert.equal(r2.checked, null);
 });
 
-test('S-2: 取得するフィールドに role と status がある', () => {
+test('取得するフィールドに role と status がある', () => {
   assert.match(CHECK_FIELDS, /\bpassword\b/);
   assert.match(CHECK_FIELDS, /\brole\b/);
   assert.match(CHECK_FIELDS, /\bstatus\b/);

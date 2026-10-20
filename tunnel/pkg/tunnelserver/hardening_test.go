@@ -37,7 +37,7 @@ func waitDone(t *testing.T, done <-chan struct{}, within time.Duration, what str
 	}
 }
 
-// M3: a forged 0x7fffffff length header in the (unauthenticated) hello must be
+// A forged 0x7fffffff length header in the (unauthenticated) hello must be
 // refused without allocating the announced size.
 func TestHandshakeRejectsHugeLengthWithoutAllocating(t *testing.T) {
 	ts := newTestServer()
@@ -73,7 +73,7 @@ func TestHandshakeRejectsHugeLengthWithoutAllocating(t *testing.T) {
 	}
 }
 
-// M3: a peer that connects and says nothing is dropped after handshake_timeout.
+// A peer that connects and says nothing is dropped after handshake_timeout.
 func TestHandshakeTimesOutOnSilentPeer(t *testing.T) {
 	ts := newTestServer()
 	ts.cfg = &config.Config{Tunnel: config.TunnelConfig{HandshakeTimeout: 1}}
@@ -100,7 +100,7 @@ func TestHandshakeTimesOutOnSilentPeer(t *testing.T) {
 	}
 }
 
-// M3: the deadline also covers the TLS handshake, which is where a plain TCP
+// The deadline also covers the TLS handshake, which is where a plain TCP
 // connect-and-wait attacker would otherwise sit forever.
 func TestTLSListenerDropsSilentPeerAfterHandshakeTimeout(t *testing.T) {
 	pki := newTestPKI(t)
@@ -143,7 +143,7 @@ func TestTLSListenerDropsSilentPeerAfterHandshakeTimeout(t *testing.T) {
 	}
 }
 
-// M3: frames from an authenticated client are bounded too.
+// Frames from an authenticated client are bounded too.
 func TestSendRejectsOversizedFrameFromClient(t *testing.T) {
 	serverEnd, clientEnd := net.Pipe()
 	defer clientEnd.Close()
@@ -174,7 +174,7 @@ func TestSendRejectsOversizedFrameFromClient(t *testing.T) {
 	}
 }
 
-// S3: policy.max_response_bytes is enforced and the desynchronised connection is dropped.
+// Policy.max_response_bytes is enforced and the desynchronised connection is dropped.
 func TestForwardRequestEnforcesResponseLimit(t *testing.T) {
 	ts := newTestServer()
 	domain := config.DomainConfig{
@@ -229,7 +229,7 @@ func TestResponseLimitDefaultsAndCeiling(t *testing.T) {
 	}
 }
 
-// M2: the API key never shows up in logs, admin payloads, request ids or errors.
+// The API key never shows up in logs, admin payloads, request ids or errors.
 func TestAPIKeyNeverLeaksIntoOutputs(t *testing.T) {
 	const secret = "SECRET-api-key-must-never-appear-0123"
 	logger, logBuf := newCapturingLogger()
@@ -366,7 +366,7 @@ type limitedStub struct {
 
 func (l *limitedStub) BodyLimits() (int64, int64) { return l.maxReq, l.maxResp }
 
-// S3: without any policy the visitor body is still capped by the server-wide limit.
+// Without any policy the visitor body is still capped by the server-wide limit.
 func TestProxyHandlerAppliesServerWideRequestLimit(t *testing.T) {
 	stub := &limitedStub{stubTunnel: stubTunnel{domain: config.DomainConfig{Subdomain: "sub", LocalURL: "http://x"}}, maxReq: 8, maxResp: 1 << 20}
 	handler := newTestProxyHandler(stub)
@@ -438,7 +438,7 @@ func TestProxyHandlerErrorBodiesAreFixed(t *testing.T) {
 	}
 }
 
-// S9: Reload carries trusted_proxies over to the policy engine.
+// Reload carries trusted_proxies over to the policy engine.
 func TestReloadUpdatesTrustedProxies(t *testing.T) {
 	ts := newTestServer()
 	policyCfg := config.DomainPolicy{IPAllowList: []string{"198.51.100.7"}}
@@ -480,7 +480,7 @@ func sendHello(t *testing.T, ts *TunnelServer, hello protocol.ClientHello) proto
 	return reply
 }
 
-// M3-R: the mode in an unauthenticated hello must never become a metrics key. However many
+// The mode in an unauthenticated hello must never become a metrics key. However many
 // distinct (huge) modes are sent, the per-mode error map stays within a fixed set of buckets.
 func TestUnauthenticatedModeCannotGrowMetrics(t *testing.T) {
 	logger, logBuf := newCapturingLogger()
@@ -530,7 +530,7 @@ func TestUnauthenticatedModeCannotGrowMetrics(t *testing.T) {
 	assertLogLinesShort(t, logBuf.String(), 1024)
 }
 
-// M3-R: mode and tunnel_id are cut to a short length wherever they reach a log line,
+// Mode and tunnel_id are cut to a short length wherever they reach a log line,
 // including the rejections that happen after the API key is known (TCP tunnel id).
 func TestHelloFieldsAreTruncatedInLogs(t *testing.T) {
 	logger, logBuf := newCapturingLogger()

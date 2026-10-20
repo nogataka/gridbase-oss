@@ -71,7 +71,7 @@ export const AppHeader = ({ session }: Props) => {
                 <Link href="/" style={{ display: "flex", alignItems: "center" }}>
                   <img 
                     src="/images/logo_new.png" 
-                    alt="GridBase" 
+                    alt="gridbase" 
                     style={{ height: "16px", width: "auto", marginBottom: "2.5px", marginRight: "6px" }} 
                   />
                 </Link>
@@ -89,7 +89,7 @@ export const AppHeader = ({ session }: Props) => {
                       whiteSpace: 'nowrap',
                     }}
                   >
-                    GridBase
+                    gridbase
                   </Text>
                 </Link>
               </Group>
@@ -182,10 +182,10 @@ export const AppHeader = ({ session }: Props) => {
           <Group spacing="xs" noWrap>
             <img 
               src="/images/logo_new.png" 
-              alt="GridBase" 
+              alt="gridbase" 
               style={{ height: "32px", width: "auto" }} 
             />
-            <Text weight={700} size="lg">GridBase</Text>
+            <Text weight={700} size="lg">gridbase</Text>
           </Group>
         }
         zIndex={1000}

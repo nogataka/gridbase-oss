@@ -494,7 +494,7 @@ func TestRouterRejectsNonAdminHost(t *testing.T) {
 	}
 }
 
-// S10: a missing, short or placeholder bearer token disables the admin API
+// A missing, short or placeholder bearer token disables the admin API
 // entirely, even for a caller that presents exactly that token.
 func TestRouterDisabledForWeakBearerTokens(t *testing.T) {
 	weak := []string{

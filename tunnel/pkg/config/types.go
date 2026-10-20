@@ -104,8 +104,10 @@ func (t TunnelConfig) HandshakeDeadline() time.Duration {
 // client sends back; a per-subdomain policy can only lower them.
 //
 // TrustedProxies lists the reverse proxies (IPs or CIDRs) whose X-Forwarded-For /
-// X-Real-IP headers are believed when evaluating ip_allow_list. The default
-// (empty) trusts nothing: the client address is the TCP peer address.
+// X-Real-IP / X-Forwarded-Proto headers are believed when evaluating
+// ip_allow_list and allowed_protocols. The default (empty) trusts nothing: the
+// client address is the TCP peer address and the protocol comes from the
+// connection (TLS or not).
 type HTTPConfig struct {
 	Port                 int      `json:"port"`
 	ReadTimeout          int      `json:"read_timeout,omitempty"`

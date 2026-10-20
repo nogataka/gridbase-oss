@@ -2,7 +2,7 @@
   "name": "gridbase-web",
   "version": "0.1.0",
   "private": true,
-  "description": "GridBase admin web (sign-in, API keys, subdomains, user management)",
+  "description": "gridbase admin web (sign-in, API keys, subdomains, user management)",
   "engines": {
     "node": ">=20"
   },

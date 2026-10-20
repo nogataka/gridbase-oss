@@ -54,7 +54,7 @@ services:
       DB_CLIENT: sqlite3
       DB_FILENAME: /directus/database/data.db
       # ADMIN_* は「最初の起動で Directus 管理者を作る」ときだけ使われます。
-      # 起動後に .env を書き換えても、すでに保存された管理者のパスワード・トークンは変わりません（README 参照）
+      # 起動後に .env を書き換えても、すでに保存された管理者のパスワード・トークンは変わりません（docs/production.md の「Changing credentials after the first start」参照）
       ADMIN_EMAIL: ${DIRECTUS_ADMIN_EMAIL:?DIRECTUS_ADMIN_EMAIL を .env に設定してください}
       ADMIN_PASSWORD: ${DIRECTUS_ADMIN_PASSWORD:?DIRECTUS_ADMIN_PASSWORD を .env に設定してください}
       ADMIN_TOKEN: ${DIRECTUS_ADMIN_TOKEN:?DIRECTUS_ADMIN_TOKEN を .env に設定してください}

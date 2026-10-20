@@ -20,6 +20,7 @@ type stubTunnel struct {
 	response *protocol.ResponsePayload
 	err      error
 	payload  *protocol.RequestPayload
+	engine   *policy.Engine
 }
 
 func newTestProxyHandler(tunnel tunnelBackend) *ProxyHandler {
@@ -40,6 +41,9 @@ func (s *stubTunnel) LookupDomain(subdomain string) (config.DomainConfig, bool) 
 }
 
 func (s *stubTunnel) PolicyEngine() *policy.Engine {
+	if s.engine != nil {
+		return s.engine
+	}
 	return policy.NewEngine()
 }
 
@@ -130,6 +134,66 @@ func TestProxyHandlerInjectsDefaultHeaders(t *testing.T) {
 
 	if tunnel.payload.Target != "http://backend/api" {
 		t.Fatalf("unexpected target: %s", tunnel.payload.Target)
+	}
+}
+
+// Forwarding headers forged by a visitor who reached the HTTP port directly are
+// not relayed to the backend; the same headers from a trusted proxy are.
+func TestProxyHandlerStripsForwardingHeadersFromUntrustedPeer(t *testing.T) {
+	cases := []struct {
+		name       string
+		remoteAddr string
+		wantKept   bool
+	}{
+		{"untrusted peer", "203.0.113.9:4000", false},
+		{"trusted proxy", "10.0.0.2:4000", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			engine := policy.NewEngine()
+			engine.SetTrustedProxies([]string{"10.0.0.0/8"})
+			tunnel := &stubTunnel{
+				domain: config.DomainConfig{
+					Subdomain: "sub",
+					LocalURL:  "http://backend",
+					Policy:    config.DomainPolicy{DefaultHeaders: map[string]string{"X-Forwarded-Host": "configured.example"}},
+				},
+				engine: engine,
+				response: &protocol.ResponsePayload{
+					StatusCode: http.StatusOK,
+					Header:     map[string][]string{"Content-Length": {"0"}},
+				},
+			}
+			handler := newTestProxyHandler(tunnel)
+
+			req := httptest.NewRequest(http.MethodGet, "http://sub.example.com/", nil)
+			req.Host = "sub.example.com"
+			req.RemoteAddr = tc.remoteAddr
+			req.Header.Set("X-Forwarded-For", "1.2.3.4")
+			req.Header.Set("X-Forwarded-Proto", "https")
+			req.Header.Set("X-Real-IP", "1.2.3.4")
+			req.Header.Set("Forwarded", "for=1.2.3.4")
+			req.Header.Set("X-Custom", "keep")
+
+			rec := httptest.NewRecorder()
+			handler.ServeHTTP(rec, req)
+			if rec.Code != http.StatusOK || tunnel.payload == nil {
+				t.Fatalf("request not forwarded: status %d", rec.Code)
+			}
+
+			got := tunnel.payload.Header
+			for _, name := range []string{"X-Forwarded-For", "X-Forwarded-Proto", "X-Real-Ip", "Forwarded"} {
+				if (len(got[name]) > 0) != tc.wantKept {
+					t.Fatalf("%s kept=%v, want %v (headers: %#v)", name, len(got[name]) > 0, tc.wantKept, got)
+				}
+			}
+			if v := got["X-Custom"]; len(v) != 1 || v[0] != "keep" {
+				t.Fatalf("unrelated header must be preserved, got %#v", v)
+			}
+			if v := got["X-Forwarded-Host"]; len(v) != 1 || v[0] != "configured.example" {
+				t.Fatalf("operator default_headers must still be applied, got %#v", v)
+			}
+		})
 	}
 }
 
