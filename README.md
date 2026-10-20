@@ -178,3 +178,5 @@ You can also delete `.env` afterwards (`rm .env`) if you no longer need it. `doc
 ## License
 
 [MIT](./LICENSE). Copyright (c) 2026 nogataka.
+
+The MIT license covers the code in this repository. The stack also pulls third-party images under their own licenses. In particular, Directus 11.17.4 is licensed under the Business Source License 1.1, which is not an open source license: production use is free only for organizations with total finances of US $5,000,000 or less in the most recent 12 months, and larger organizations need a commercial license from Directus. Read the [Directus license](https://github.com/directus/directus/blob/v11.17.4/license) before running gridbase in production.
